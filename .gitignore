@@ -1,0 +1,8 @@
+# Ignore environment file with credentials
+.env
+/thumbnail_cache
+/venv
+
+# Python cache files
+__pycache__/
+*.pyc

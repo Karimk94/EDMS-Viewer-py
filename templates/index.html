@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EDMS Face Recognition</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>EDMS Face Recognition System</h1>
+            <p>Browse documents from Oracle and analyze images from the EDMS.</p>
+            <button id="clear-cache-btn" class="secondary-btn">Clear Thumbnail Cache</button>
+        </header>
+
+        <main>
+            <section class="card" id="documents-section">
+                <div class="controls-header">
+                    <h2>Documents</h2>
+                    <div class="search-container">
+                        <input type="text" id="search-input" placeholder="Search by title or author...">
+                        <button id="search-button">Search</button>
+                    </div>
+                </div>
+                <div id="documents-list"></div>
+                <div id="documents-loader" class="loader"></div>
+                <div id="pagination-controls"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for displaying the image and analysis results -->
+    <div id="image-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-btn" id="modal-close">&times;</button>
+            <div id="modal-body">
+                <div id="modal-image-view">
+                    <h2 id="modal-doc-title"></h2>
+                    <div id="modal-image-loader" class="loader"></div>
+                    <img id="modal-image" src="" alt="Document Image" class="hidden">
+                    <button id="analyze-btn" class="hidden">Analyze for Faces</button>
+                </div>
+                <div id="modal-analysis-view" class="hidden">
+                    <h2>Analysis Results</h2>
+                    <img id="analysis-result-image" src="" alt="Processed image">
+                    <div id="unknown-faces-container"></div>
+                    <div id="update-abstract-container" class="hidden">
+                        <hr>
+                        <button id="update-abstract-btn" class="update-btn">Update Abstract in Oracle with Confirmed Names</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

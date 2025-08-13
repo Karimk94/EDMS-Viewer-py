@@ -1,0 +1,6 @@
+flask
+oracledb
+zeep
+python-dotenv
+Pillow
+requests
