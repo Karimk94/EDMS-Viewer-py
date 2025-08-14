@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constants ---
-    const FACE_SERVICE_URL = 'http://127.0.0.1:5002'; // URL of the Face Recognition Service
+    const FACE_SERVICE_URL = 'http://127.0.0.1:5001'; // The port for the Face Recognition Service
 
     // --- DOM Elements ---
     const documentsList = document.getElementById('documents-list');
@@ -38,7 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const url = new URL('/api/documents', window.location.origin);
             url.searchParams.append('page', page);
-            if (searchTerm) url.searchParams.append('search', searchTerm);
+            if (searchTerm) {
+                url.searchParams.append('search', searchTerm);
+            }
+
             const response = await fetch(url);
             const data = await response.json();
 
@@ -64,8 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 documentsList.appendChild(item);
             });
+
             renderPagination(data.page, data.total_pages);
+
         } catch (error) {
+            console.error('Failed to load documents:', error);
             documentsList.innerHTML = '<p class="error">Could not load documents.</p>';
         } finally {
             documentsLoader.classList.add('hidden');
@@ -75,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderPagination = (page, totalPages) => {
         paginationControls.innerHTML = '';
         if (totalPages <= 1) return;
+
         const createBtn = (text, targetPage, disabled) => {
             const btn = document.createElement('button');
             btn.textContent = text;
@@ -83,8 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', () => loadDocuments(targetPage, currentSearchTerm));
             return btn;
         };
+
         paginationControls.appendChild(createBtn('« First', 1, page <= 1));
         paginationControls.appendChild(createBtn('‹ Prev', page - 1, page <= 1));
+
         const pageInfo = document.createElement('span');
         pageInfo.id = 'page-info';
         pageInfo.textContent = `Page `;
@@ -96,11 +105,14 @@ document.addEventListener('DOMContentLoaded', () => {
         pageInput.max = totalPages;
         pageInput.addEventListener('change', (e) => {
             const newPage = parseInt(e.target.value);
-            if (newPage >= 1 && newPage <= totalPages) loadDocuments(newPage, currentSearchTerm);
+            if (newPage >= 1 && newPage <= totalPages) {
+                loadDocuments(newPage, currentSearchTerm);
+            }
         });
         pageInfo.appendChild(pageInput);
         pageInfo.append(` of ${totalPages}`);
         paginationControls.appendChild(pageInfo);
+
         paginationControls.appendChild(createBtn('Next ›', page + 1, page >= totalPages));
         paginationControls.appendChild(createBtn('Last »', totalPages, page >= totalPages));
     };
@@ -119,15 +131,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch(`/api/image/${docId}`);
             if (!response.ok) throw new Error('Image not found in EDMS.');
+            
             const imageBlob = await response.blob();
             originalImageForAnalysis = imageBlob;
             modalImage.src = URL.createObjectURL(imageBlob);
+            
             modalImage.onload = () => {
                 modalImageLoader.classList.add('hidden');
                 modalImage.classList.remove('hidden');
                 analyzeBtn.classList.remove('hidden');
             };
         } catch (error) {
+            console.error('Failed to load image:', error);
             modalImageLoader.classList.add('hidden');
             modalDocTitle.textContent = `Error: ${error.message}`;
         }
@@ -135,10 +150,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const closeImageModal = () => {
         modal.classList.add('hidden');
-        if (modalImage.src) URL.revokeObjectURL(modalImage.src);
+        if (modalImage.src) {
+            URL.revokeObjectURL(modalImage.src);
+        }
     };
 
-    const performSearch = () => loadDocuments(1, searchInput.value.trim());
+    const performSearch = () => {
+        loadDocuments(1, searchInput.value.trim());
+    };
+
+    const createFaceForm = (face, originalImageB64) => {
+        const formContainer = document.createElement('div');
+        formContainer.className = 'face-form';
+        
+        const label = document.createElement('label');
+        label.className = 'face-label';
+        label.textContent = `Face #${face.index}`;
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'Enter or correct name...';
+        nameInput.className = 'name-input';
+        if (face.name !== 'Unknown') {
+            nameInput.value = face.name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        const saveBtn = document.createElement('button');
+        saveBtn.textContent = 'Save';
+        saveBtn.className = 'save-btn';
+        
+        formContainer.append(label, nameInput, saveBtn);
+
+        saveBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            if (!name) return alert('Please enter a name.');
+            
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+            
+            try {
+                const response = await fetch(`${FACE_SERVICE_URL}/api/add_face`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, location: face.location, original_image_b64: originalImageB64 }),
+                });
+                if (!response.ok) throw new Error('Failed to save face to the recognition service.');
+                formContainer.innerHTML = `<p class="success">✅ Saved ${name}!</p>`;
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        });
+        return formContainer;
+    };
+
+    // --- Event Listeners ---
+
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') performSearch(); });
 
@@ -156,15 +224,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     documentsList.addEventListener('click', (e) => {
         const item = e.target.closest('.document-item');
-        if (item) openImageModal(item.dataset.docId, item.querySelector('h3').textContent);
+        if (item) {
+            openImageModal(item.dataset.docId, item.querySelector('h3').textContent);
+        }
     });
 
     analyzeBtn.addEventListener('click', async () => {
         if (!originalImageForAnalysis) return;
+        
         analyzeBtn.disabled = true;
         analyzeBtn.textContent = 'Analyzing...';
+        
         const formData = new FormData();
         formData.append('image_file', originalImageForAnalysis, `${currentDocId}.jpg`);
+
         try {
             const response = await fetch(`${FACE_SERVICE_URL}/api/analyze_image`, { method: 'POST', body: formData });
             if (!response.ok) {
@@ -172,10 +245,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errData.error || 'Analysis failed.');
             }
             const data = await response.json();
+            
             modalImageView.classList.add('hidden');
             modalAnalysisView.classList.remove('hidden');
             analysisResultImage.src = `data:image/jpeg;base64,${data.processed_image}`;
             unknownFacesContainer.innerHTML = '';
+
             if (data.faces && data.faces.length > 0) {
                 const title = document.createElement('h3');
                 title.textContent = 'Detected Faces (Edit or Add Name)';
@@ -196,45 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const createFaceForm = (face, originalImageB64) => {
-        const formContainer = document.createElement('div');
-        formContainer.className = 'face-form';
-        const label = document.createElement('label');
-        label.className = 'face-label';
-        label.textContent = `Face #${face.index}`;
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.placeholder = 'Enter or correct name...';
-        nameInput.className = 'name-input';
-        if (face.name !== 'Unknown') {
-            nameInput.value = face.name.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-        }
-        const saveBtn = document.createElement('button');
-        saveBtn.textContent = 'Save';
-        saveBtn.className = 'save-btn';
-        formContainer.append(label, nameInput, saveBtn);
-        saveBtn.addEventListener('click', async () => {
-            const name = nameInput.value.trim();
-            if (!name) return alert('Please enter a name.');
-            saveBtn.disabled = true;
-            saveBtn.textContent = 'Saving...';
-            try {
-                const response = await fetch(`${FACE_SERVICE_URL}/api/add_face`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, location: face.location, original_image_b64: originalImageB64 }),
-                });
-                if (!response.ok) throw new Error('Failed to save face.');
-                formContainer.innerHTML = `<p class="success">✅ Saved ${name}!</p>`;
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-                saveBtn.disabled = false;
-                saveBtn.textContent = 'Save';
-            }
-        });
-        return formContainer;
-    };
-
     updateAbstractBtn.addEventListener('click', async () => {
         const nameInputs = unknownFacesContainer.querySelectorAll('.name-input');
         const names = Array.from(nameInputs)
@@ -248,8 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Are you sure you want to update the abstract with these names: ${names.join(', ')}?`)) {
             return;
         }
+        
         updateAbstractBtn.disabled = true;
         updateAbstractBtn.textContent = "Updating Oracle...";
+        
         try {
             const response = await fetch('/api/update_abstract', {
                 method: 'POST',
@@ -263,12 +301,13 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             alert(`Error: ${error.message}`);
             updateAbstractBtn.disabled = false;
-            updateAbstractBtn.textContent = "Update Description with Confirmed Names";
+            updateAbstractBtn.textContent = "Update Abstract in Oracle with Confirmed Names";
         }
     });
 
     modalCloseBtn.addEventListener('click', closeImageModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeImageModal(); });
 
+    // --- Initial Load ---
     loadDocuments();
 });
