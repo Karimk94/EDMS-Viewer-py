@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constants ---
-    const FACE_SERVICE_URL = 'http://127.0.0.1:5001'; // The port for the Face Recognition Service
+    const FACE_SERVICE_URL = 'http://127.0.0.1:5002'; // The port for the Face Recognition Service
 
     // --- DOM Elements ---
     const documentsList = document.getElementById('documents-list');
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.textContent = 'Saving...';
             
             try {
-                const response = await fetch(`${FACE_SERVICE_URL}/api/add_face`, {
+                const response = await fetch(`${FACE_SERVICE_URL}/add_face`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, location: face.location, original_image_b64: originalImageB64 }),
@@ -239,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('image_file', originalImageForAnalysis, `${currentDocId}.jpg`);
 
         try {
-            const response = await fetch(`${FACE_SERVICE_URL}/api/analyze_image`, { method: 'POST', body: formData });
+            const response = await fetch(`${FACE_SERVICE_URL}/analyze_image`, { method: 'POST', body: formData });
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.error || 'Analysis failed.');
