@@ -4,3 +4,4 @@ zeep
 python-dotenv
 Pillow
 requests
+Flask-Cors

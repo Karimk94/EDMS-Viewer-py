@@ -1,10 +1,15 @@
 from flask import Flask, render_template, request, jsonify, Response, send_from_directory
+from flask_cors import CORS 
 import math
 from edms_connector import EDMSConnector
 from werkzeug.serving import run_simple
 
 # --- Initialization ---
 app = Flask(__name__, template_folder='templates', static_folder='static')
+
+# Enable CORS for the frontend origin
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
+
 edms = EDMSConnector()
 
 # --- HTML Route ---
@@ -17,8 +22,18 @@ def index():
 def api_get_documents():
     page = request.args.get('page', 1, type=int)
     search_term = request.args.get('search', None, type=str)
-    documents, total_rows = edms.fetch_documents_from_oracle(page=page, search_term=search_term)
+    date_from = request.args.get('date_from', None, type=str)
+    date_to = request.args.get('date_to', None, type=str)
+    
+    documents, total_rows = edms.fetch_documents_from_oracle(
+        page=page, 
+        search_term=search_term,
+        date_from=date_from,
+        date_to=date_to
+    )
+    
     total_pages = math.ceil(total_rows / 10) if total_rows > 0 else 1
+
     return jsonify({
         "documents": documents, "page": page,
         "total_pages": total_pages, "total_documents": total_rows

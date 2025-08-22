@@ -1,5 +1,3 @@
-# edms_viewer/edms_connector.py
-
 import oracledb
 import os
 from zeep import Client, Settings
@@ -51,14 +49,13 @@ class EDMSConnector:
             print(f"❌ An unexpected error occurred during DMS login: {e}")
             return None
 
-    def fetch_documents_from_oracle(self, page=1, page_size=10, search_term=None):
+    def fetch_documents_from_oracle(self, page=1, page_size=10, search_term=None, date_from=None, date_to=None):
         conn = self._get_db_connection()
         if not conn: return [], 0
         offset = (page - 1) * page_size
         documents = []
         total_rows = 0
         
-        # Using the specific query from your reference
         base_where = "WHERE docnumber >= 19661457 and FORM = 2740 "
         count_query = f"SELECT COUNT(DOCNUMBER) FROM PROFILE {base_where}"
         fetch_query = f"SELECT DOCNUMBER, ABSTRACT, AUTHOR, CREATION_DATE FROM PROFILE {base_where}"
@@ -68,9 +65,18 @@ class EDMSConnector:
         if search_term:
             words = re.findall(r'\w+', search_term.upper())
             conditions = [f"UPPER(ABSTRACT) LIKE :search_word_{i}" for i in range(len(words))]
-            where_clause = "AND " + " AND ".join(conditions)
+            where_clause += "AND " + " AND ".join(conditions)
             for i, word in enumerate(words):
                 params[f"search_word_{i}"] = f"%{word}%"
+        
+        if date_from:
+            where_clause += " AND CREATION_DATE >= TO_DATE(:date_from, 'YYYY-MM-DD HH24:MI:SS')"
+            params['date_from'] = date_from
+
+        if date_to:
+            where_clause += " AND CREATION_DATE <= TO_DATE(:date_to, 'YYYY-MM-DD HH24:MI:SS')"
+            params['date_to'] = date_to
+
         try:
             with conn.cursor() as cursor:
                 cursor.execute(count_query + where_clause, params)
