@@ -221,3 +221,36 @@ class EDMSConnector:
         finally:
             if conn:
                 conn.close()
+
+    def fetch_lkp_persons(self, page=1, page_size=20, search=''):
+        conn = self._get_db_connection()
+        if not conn:
+            return [], 0
+        
+        offset = (page - 1) * page_size
+        persons = []
+        total_rows = 0
+        
+        search_term = f"%{search.upper()}%"
+        
+        count_query = "SELECT COUNT(SYSTEM_ID) FROM LKP_PERSON WHERE UPPER(NAME_ENGLISH) LIKE :search OR UPPER(NAME_ARABIC) LIKE :search"
+        fetch_query = "SELECT SYSTEM_ID, NAME_ENGLISH, NVL(NAME_ARABIC, '') FROM LKP_PERSON WHERE UPPER(NAME_ENGLISH) LIKE :search OR UPPER(NAME_ARABIC) LIKE :search ORDER BY NAME_ENGLISH OFFSET :offset ROWS FETCH NEXT :page_size ROWS ONLY"
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(count_query, search=search_term)
+                total_rows = cursor.fetchone()[0]
+
+                cursor.execute(fetch_query, search=search_term, offset=offset, page_size=page_size)
+                for row in cursor:
+                    persons.append({
+                        "id": row[0],
+                        "name_english": row[1],
+                        "name_arabic": row[2]
+                    })
+        except oracledb.Error as e:
+            print(f"❌ Oracle Database error in fetch_lkp_persons: {e}")
+        finally:
+            conn.close()
+            
+        return persons, total_rows

@@ -82,6 +82,17 @@ def api_add_person():
         return jsonify({'message': message})
     else:
         return jsonify({'error': message}), 500
+
+@app.route('/api/persons')
+def api_get_persons():
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '', type=str)
+    persons, total_rows = edms.fetch_lkp_persons(page=page, search=search)
+    return jsonify({
+        'options': persons,
+        'hasMore': (page * 20) < total_rows
+    })
+
     
 if __name__ == '__main__':
     run_simple(
