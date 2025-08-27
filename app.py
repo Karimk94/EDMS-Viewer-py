@@ -71,6 +71,18 @@ def api_update_abstract():
     else:
         return jsonify({'error': message}), 500
     
+@app.route('/api/add_person', methods=['POST'])
+def api_add_person():
+    data = request.get_json()
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Invalid data provided.'}), 400
+    success, message = edms.add_person_to_lkp(name)
+    if success:
+        return jsonify({'message': message})
+    else:
+        return jsonify({'error': message}), 500
+    
 if __name__ == '__main__':
     run_simple(
         '127.0.0.1',

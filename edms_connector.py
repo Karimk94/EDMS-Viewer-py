@@ -56,9 +56,9 @@ class EDMSConnector:
         documents = []
         total_rows = 0
         
-        base_where = "WHERE docnumber >= 19661457 and FORM = 2740 "
+        base_where = "WHERE docnumber >= 19662092 and FORM = 2740 "
         count_query = f"SELECT COUNT(DOCNUMBER) FROM PROFILE {base_where}"
-        fetch_query = f"SELECT DOCNUMBER, ABSTRACT, AUTHOR, CREATION_DATE FROM PROFILE {base_where}"
+        fetch_query = f"SELECT DOCNUMBER, ABSTRACT, AUTHOR, CREATION_DATE, DOCNAME FROM PROFILE {base_where}"
         
         where_clause = ""
         params = {}
@@ -88,8 +88,11 @@ class EDMSConnector:
                     doc_id = row[0]
                     thumbnail_path = self.get_thumbnail_from_edms(doc_id)
                     documents.append({
-                        "doc_id": doc_id, "title": row[1] or "No Title",
-                        "author": row[2] or "N/A", "date": row[3].strftime('%Y-%m-%d') if row[3] else "N/A",
+                        "doc_id": doc_id,
+                        "title": row[1] or "No Title",
+                        "docname": row[4] or "",
+                        "author": row[2] or "N/A",
+                        "date": row[3].strftime('%Y-%m-%d') if row[3] else "N/A",
                         "thumbnail_url": thumbnail_path or "https://placehold.co/100x100/e9ecef/6c757d?text=No+Image"
                     })
         finally:
@@ -193,3 +196,28 @@ class EDMSConnector:
             return False, f"Database error: {e}"
         finally:
             conn.close()
+
+    def add_person_to_lkp(self, person_name):
+        conn = self._get_db_connection()
+        if not conn:
+            return False, "Could not connect to the database."
+        try:
+            with conn.cursor() as cursor:
+                # Check if the person already exists
+                cursor.execute("SELECT COUNT(SYSTEM_ID) FROM LKP_PERSON WHERE NAME_ENGLISH = :1", [person_name])
+                if cursor.fetchone()[0] > 0:
+                    return True, f"'{person_name}' already exists in LKP_PERSON."
+
+                # If not, insert the new person with the corrected SYSTEM_ID logic
+                insert_query = """
+                    INSERT INTO LKP_PERSON (NAME_ENGLISH, LAST_UPDATE, DISABLED, SYSTEM_ID) 
+                    VALUES (:1, SYSDATE, 0, (SELECT NVL(MAX(SYSTEM_ID), 0) + 1 FROM LKP_PERSON))
+                """
+                cursor.execute(insert_query, [person_name])
+                conn.commit()
+                return True, f"Successfully added '{person_name}' to LKP_PERSON."
+        except oracledb.Error as e:
+            return False, f"Database error: {e}"
+        finally:
+            if conn:
+                conn.close()
