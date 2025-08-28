@@ -24,12 +24,16 @@ def api_get_documents():
     search_term = request.args.get('search', None, type=str)
     date_from = request.args.get('date_from', None, type=str)
     date_to = request.args.get('date_to', None, type=str)
-    
+    persons = request.args.get('persons', None, type=str)
+    person_condition = request.args.get('person_condition', 'any', type=str)
+
     documents, total_rows = edms.fetch_documents_from_oracle(
         page=page, 
         search_term=search_term,
         date_from=date_from,
-        date_to=date_to
+        date_to=date_to,
+        persons=persons,
+        person_condition=person_condition
     )
     
     total_pages = math.ceil(total_rows / 10) if total_rows > 0 else 1

@@ -49,7 +49,7 @@ class EDMSConnector:
             print(f"❌ An unexpected error occurred during DMS login: {e}")
             return None
 
-    def fetch_documents_from_oracle(self, page=1, page_size=10, search_term=None, date_from=None, date_to=None):
+    def fetch_documents_from_oracle(self, page=1, page_size=10, search_term=None, date_from=None, date_to=None, persons=None, person_condition='any'):
         conn = self._get_db_connection()
         if not conn: return [], 0
         offset = (page - 1) * page_size
@@ -68,6 +68,20 @@ class EDMSConnector:
             where_clause += "AND " + " AND ".join(conditions)
             for i, word in enumerate(words):
                 params[f"search_word_{i}"] = f"%{word}%"
+
+        if persons:
+            person_list = [p.strip().upper() for p in persons.split(',') if p.strip()]
+            if person_list:
+                # Determine the logical operator based on the condition
+                logical_operator = " OR " if person_condition == 'any' else " AND "
+                
+                person_conditions = [f"UPPER(ABSTRACT) LIKE :person_{i}" for i in range(len(person_list))]
+                
+                # Join the conditions with the appropriate operator
+                where_clause += " AND (" + logical_operator.join(person_conditions) + ")"
+                
+                for i, person in enumerate(person_list):
+                    params[f'person_{i}'] = f"%{person}%"
         
         if date_from:
             where_clause += " AND CREATION_DATE >= TO_DATE(:date_from, 'YYYY-MM-DD HH24:MI:SS')"
